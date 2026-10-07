@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UPI Offline Mesh — Demo</title>
+    <style>
+        :root {
+            --ink: #0f1230;
+            --ink-2: #151a42;
+            --panel: #1b2152;
+            --panel-2: #232a63;
+            --line: #323a7a;
+            --text: #eef0ff;
+            --muted: #98a0d6;
+            --marigold: #ffb627;
+            --mint: #3ddbb0;
+            --sky: #7c9cff;
+            --coral: #ff6b7a;
+            --amber: #f2a93b;
+            --radius: 14px;
+            --sans: "Avenir Next", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+            --mono: ui-monospace, "SF Mono", Consolas, Menlo, monospace;
+        }
+        * { box-sizing: border-box; }
+        html { color-scheme: dark; }
+        body {
+            margin: 0; padding: 32px 24px 64px;
+            font-family: var(--sans); color: var(--text); line-height: 1.5;
+            background:
+                radial-gradient(900px 500px at 85% -10%, rgba(124,156,255,.22), transparent 60%),
+                radial-gradient(700px 400px at -5% 10%, rgba(255,182,39,.10), transparent 60%),
+                var(--ink);
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Header */
+        header { margin-bottom: 28px; max-width: 680px; }
+        h1 {
+            margin: 0 0 8px; font-size: clamp(30px, 5vw, 46px); line-height: 1.05;
+            letter-spacing: -0.03em; font-weight: 800;
+        }
+        h1 .rupee { color: var(--marigold); }
+        .lede { margin: 0; color: var(--muted); font-size: 16px; max-width: 56ch; }
+        .small { font-size: 12.5px; color: var(--muted); }
+
+        h2 { margin: 0 0 14px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+        h2 .count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--muted); }
+
+        /* Flow: the three steps are a real sequence */
+        .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-bottom: 20px; position: relative; }
+        .step {
+            background: var(--panel); border: 1px solid var(--line); padding: 20px;
+            position: relative;
+        }
+        .step:nth-child(1) { border-radius: var(--radius) 0 0 var(--radius); }
+        .step:nth-child(2) { border-left: 0; border-right: 0; }
+        .step:nth-child(3) { border-radius: 0 var(--radius) var(--radius) 0; }
+        .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+        .step-num {
+            width: 28px; height: 28px; border-radius: 50%; flex: none;
+            display: grid; place-items: center; font-weight: 800; font-size: 13px;
+            background: var(--marigold); color: #2b1d00;
+        }
+        .step h3 { margin: 0; font-size: 16px; }
+        .step p { margin: 0 0 14px; color: var(--muted); font-size: 13.5px; }
+        .step + .step::before {
+            content: ""; position: absolute; left: -7px; top: 50%; width: 13px; height: 13px;
+            background: var(--panel); border-top: 1px solid var(--line); border-right: 1px solid var(--line);
+            transform: translateY(-50%) rotate(45deg); z-index: 1;
+        }
+        .step:nth-child(2)::before, .step:nth-child(3)::before { background: var(--panel); }
+
+        .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .arrow { color: var(--muted); font-size: 18px; }
+        .amount-wrap { position: relative; }
+        .amount-wrap span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--marigold); font-weight: 700; }
+        .amount-wrap input { padding-left: 26px; }
+        .reset-row { display: flex; justify-content: flex-end; margin: -8px 0 20px; }
+
+        label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+
+        input, select {
+            background: var(--ink-2); color: var(--text); border: 1px solid var(--line);
+            border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 14px; min-width: 0;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        input:hover, select:hover { border-color: #4650a0; }
+        input:focus-visible, select:focus-visible, button:focus-visible {
+            outline: 2px solid var(--sky); outline-offset: 2px;
+        }
+
+        button {
+            background: var(--marigold); color: #2b1d00; border: 0; padding: 10px 16px;
+            border-radius: 10px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 700;
+            transition: transform .12s, filter .15s, background .15s;
+        }
+        button:hover { filter: brightness(1.08); }
+        button:active { transform: translateY(1px) scale(.98); }
+        button.secondary { background: var(--sky); color: #0b1240; }
+        button.danger { background: transparent; color: var(--coral); border: 1px solid rgba(255,107,122,.5); }
+        button.danger:hover { background: rgba(255,107,122,.12); filter: none; }
+
+        /* Cards & layout */
+        .grid { display: grid; gap: 20px; }
+        .grid-2 { grid-template-columns: 1.4fr 1fr; }
+        .card {
+            background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+            padding: 20px; min-width: 0;
+        }
+        .mt { margin-top: 20px; }
+
+        /* Devices */
+        #devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+        .device {
+            border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+            background: var(--ink-2); position: relative;
+        }
+        .device.bridge { border-color: rgba(61,219,176,.6); background: linear-gradient(160deg, rgba(61,219,176,.14), var(--ink-2) 60%); }
+        .device-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .dot { width: 9px; height: 9px; border-radius: 50%; background: #6b739f; flex: none; }
+        .bridge .dot { background: var(--mint); animation: ping 2.2s ease-out infinite; }
+        @keyframes ping {
+            0% { box-shadow: 0 0 0 0 rgba(61,219,176,.55); }
+            80%, 100% { box-shadow: 0 0 0 9px rgba(61,219,176,0); }
+        }
+        .device strong { font-size: 14.5px; word-break: break-all; }
+        .badge {
+            margin-left: auto; font-size: 11px; padding: 2px 9px; border-radius: 99px; font-weight: 700; white-space: nowrap;
+        }
+        .badge-online { background: rgba(61,219,176,.18); color: var(--mint); }
+        .badge-offline { background: rgba(152,160,214,.16); color: var(--muted); }
+        .packets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+        .packet-id {
+            font-family: var(--mono); font-size: 11px; color: var(--marigold);
+            background: rgba(255,182,39,.12); border: 1px solid rgba(255,182,39,.28);
+            padding: 1px 7px; border-radius: 6px;
+        }
+        .empty { color: var(--muted); font-size: 13.5px; padding: 14px 0; text-align: center; }
+
+        /* Tables */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 11px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+        th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover td { background: rgba(124,156,255,.06); }
+        td.num, th.num { text-align: right; }
+        .balance { font-variant-numeric: tabular-nums; color: var(--mint); font-weight: 700; }
+        .who { display: flex; align-items: center; gap: 10px; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+            font-weight: 800; font-size: 13px; color: #0b1240; background: var(--sky); flex: none;
+        }
+        .who small { display: block; color: var(--muted); font-size: 12px; line-height: 1.2; }
+        .who b { font-weight: 600; line-height: 1.2; }
+
+        .pill { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+        .status-SETTLED { background: rgba(61,219,176,.16); color: var(--mint); }
+        .status-REJECTED, .status-INVALID { background: rgba(255,107,122,.16); color: var(--coral); }
+        .status-DUPLICATE_DROPPED { background: rgba(242,169,59,.16); color: var(--amber); }
+
+        /* Log */
+        #log {
+            background: #090b21; color: #b8f5df; padding: 14px; border-radius: 10px;
+            font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+            max-height: 240px; overflow-y: auto; white-space: pre-wrap; border: 1px solid var(--line);
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .flow { grid-template-columns: 1fr; }
+            .step:nth-child(1) { border-radius: var(--radius) var(--radius) 0 0; }
+            .step:nth-child(2) { border: 1px solid var(--line); border-top: 0; border-bottom: 0; }
+            .step:nth-child(3) { border-radius: 0 0 var(--radius) var(--radius); border-top: 1px solid var(--line); }
+            .step + .step::before { display: none; }
+        }
+        @media (max-width: 520px) { body { padding: 20px 14px 48px; } }
+        @media (prefers-reduced-motion: reduce) {
+            .bridge .dot { animation: none; }
+            button { transition: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1><span class="rupee">₹</span> UPI Offline Mesh</h1>
+        <p class="lede">
+            Send money in a basement with zero internet. Encrypted packets gossip from phone to phone
+            until one with 4G reaches the backend.
+        </p>
+    </header>
+
+    <section class="flow" aria-label="Demo flow">
+        <div class="step">
+            <div class="step-head"><span class="step-num">1</span><h3>Compose payment</h3></div>
+            <p>Simulates the sender's phone.</p>
+            <div class="row">
+                <select id="senderVpa" aria-label="Sender">
+                    <option>alice@demo</option>
+                    <option>bob@demo</option>
+                    <option>carol@demo</option>
+                </select>
+                <span class="arrow">→</span>
+                <select id="receiverVpa" aria-label="Receiver">
+                    <option>bob@demo</option>
+                    <option>carol@demo</option>
+                    <option>alice@demo</option>
+                    <option>dave@demo</option>
+                </select>
+            </div>
+            <div class="row" style="margin-top:8px">
+                <div class="amount-wrap"><span>₹</span><input type="number" id="amount" value="500" style="width:110px" aria-label="Amount"></div>
+                <input type="text" id="pin" value="1234" style="width:80px" maxlength="4" placeholder="PIN" aria-label="PIN">
+                <button onclick="sendPacket()">Inject into mesh</button>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-head"><span class="step-num">2</span><h3>Gossip</h3></div>
+            <p>Packets hop from device to device.</p>
+            <button class="secondary" onclick="gossip()">Run gossip round</button>
+        </div>
+
+        <div class="step">
+            <div class="step-head"><span class="step-num">3</span><h3>Bridge uploads</h3></div>
+            <p>A bridge node walks outside, hits 4G, and uploads in parallel to exercise idempotency.</p>
+            <button class="secondary" onclick="flushBridges()">Upload from bridges</button>
+        </div>
+    </section>
+
+    <div class="reset-row">
+        <button class="danger" onclick="resetMesh()">Reset mesh and cache</button>
+    </div>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <h2>Mesh devices <span class="count" id="deviceCount"></span></h2>
+            <div id="devices"></div>
+        </div>
+
+        <div class="card">
+            <h2>Account balances</h2>
+            <div class="table-wrap">
+                <table id="accounts-table">
+                    <thead><tr><th>Account</th><th class="num">Balance</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <p class="small" id="cacheInfo" style="margin-bottom:0"></p>
+        </div>
+    </div>
+
+    <div class="card mt">
+        <h2>Transaction ledger</h2>
+        <div class="table-wrap">
+            <table id="tx-table">
+                <thead><tr>
+                    <th>ID</th><th>From</th><th>To</th><th class="num">Amount</th>
+                    <th>Status</th><th>Bridge</th><th>Hops</th><th>Settled</th>
+                </tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mt">
+        <h2>Activity log</h2>
+        <div id="log" aria-live="polite"></div>
+    </div>
+</div>
+
+<script>
+function log(msg) {
+    const el = document.getElementById('log');
+    el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n' + el.textContent;
+}
+
+const inr = n => '₹' + parseFloat(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+async function refresh() {
+    // Mesh state
+    const m = await fetch('/api/mesh/state').then(r => r.json());
+    const devicesDiv = document.getElementById('devices');
+    devicesDiv.innerHTML = m.devices.length ? m.devices.map(d => `
+        <div class="device ${d.hasInternet ? 'bridge' : 'offline'}">
+            <div class="device-top">
+                <span class="dot"></span>
+                <strong>${d.deviceId}</strong>
+                <span class="badge ${d.hasInternet ? 'badge-online' : 'badge-offline'}">
+                    ${d.hasInternet ? '4G bridge' : 'Offline'}
+                </span>
+            </div>
+            <span class="small">Holding ${d.packetCount} packet(s)</span>
+            <div class="packets">${d.packetIds.map(id => `<span class="packet-id">${id}</span>`).join('')}</div>
+        </div>
+    `).join('') : '<div class="empty">No devices in the mesh.</div>';
+    document.getElementById('deviceCount').textContent = m.devices.length + ' devices';
+    document.getElementById('cacheInfo').textContent =
+        `Idempotency cache size: ${m.idempotencyCacheSize}`;
+
+    // Accounts
+    const accs = await fetch('/api/accounts').then(r => r.json());
+    document.querySelector('#accounts-table tbody').innerHTML = accs.map(a => `
+        <tr>
+            <td><div class="who">
+                <span class="avatar">${(a.holderName || a.vpa).charAt(0).toUpperCase()}</span>
+                <div><b>${a.holderName}</b><small>${a.vpa}</small></div>
+            </div></td>
+            <td class="num balance">${inr(a.balance)}</td>
+        </tr>
+    `).join('');
+
+    // Transactions
+    const txs = await fetch('/api/transactions').then(r => r.json());
+    document.querySelector('#tx-table tbody').innerHTML = txs.length ? txs.map(t => `
+        <tr>
+            <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
+            <td class="num balance">${inr(t.amount)}</td>
+            <td><span class="pill status-${t.status}">${t.status}</span></td>
+            <td>${t.bridgeNodeId}</td><td>${t.hopCount}</td>
+            <td class="small">${t.settledAt ? new Date(t.settledAt).toLocaleTimeString() : '—'}</td>
+        </tr>
+    `).join('') : '<tr><td colspan="8" class="empty">No transactions yet. Inject a payment to start.</td></tr>';
+}
+
+async function sendPacket() {
+    const body = {
+        senderVpa: document.getElementById('senderVpa').value,
+        receiverVpa: document.getElementById('receiverVpa').value,
+        amount: parseFloat(document.getElementById('amount').value),
+        pin: document.getElementById('pin').value,
+        ttl: 5,
+        startDevice: 'phone-alice'
+    };
+    const r = await fetch('/api/demo/send', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).then(r => r.json());
+    log(`📤 Packet ${r.packetId.substring(0,8)} encrypted & injected at ${r.injectedAt} (TTL ${r.ttl})`);
+    log(`   ciphertext (truncated): ${r.ciphertextPreview}`);
+    refresh();
+}
+
+async function gossip() {
+    const r = await fetch('/api/mesh/gossip', {method: 'POST'}).then(r => r.json());
+    log(`🔄 Gossip: ${r.transfers} transfer(s) — ${JSON.stringify(r.deviceCounts)}`);
+    refresh();
+}
+
+async function flushBridges() {
+    const r = await fetch('/api/mesh/flush', {method: 'POST'}).then(r => r.json());
+    log(`📡 ${r.uploadsAttempted} bridge upload(s):`);
+    r.results.forEach(res => {
+        log(`   ${res.bridgeNode} packet ${res.packetId} → ${res.outcome}` +
+            (res.reason ? ` (${res.reason})` : ''));
+    });
+    refresh();
+}
+
+async function resetMesh() {
+    await fetch('/api/mesh/reset', {method: 'POST'});
+    log('🗑 mesh + idempotency cache cleared');
+    refresh();
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
